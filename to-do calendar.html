@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar To-Do List</title>
+    <style>
+        .dateHead div {
+            background: lightblue;
+            color: black;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-gap: 5px;
+            background-color: lightyellow;
+        }
+
+        .grid div {
+            padding: .6rem;
+            font-size: .9rem;
+            cursor: pointer;
+        }
+
+        .dateBoard div {
+            color: #222;
+            font-weight: bold;
+            min-height: 6rem;
+            padding: .6rem .8rem;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .dateBoard div p {
+            font-size: 0.8rem;
+            margin: 0.2rem 0;
+            cursor: pointer;
+        }
+
+        .highlighted-plan {
+            background-color: red;
+            color: white;
+            border-radius: 5px;
+            padding: 0.2rem;
+        }
+
+        .completed-plan {
+            text-decoration: line-through;
+            color: gray;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 2rem;
+        }
+
+        .btn {
+            display: block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #000;
+            border-width: 3px 3px 0 0;
+            cursor: pointer;
+        }
+
+        .prevDay {
+            transform: rotate(-135deg);
+        }
+
+        .nextDay {
+            transform: rotate(45deg);
+        }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none;
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+            padding: 8px;
+            font-size: 1rem;
+        }
+
+        .modal button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class='rap'>
+        <div class="header">
+            <div class="btn prevDay"></div>
+            <h2 class='dateTitle'></h2>
+            <div class="btn nextDay"></div>
+        </div>
+
+        <div class="grid dateHead">
+            <div>일</div>
+            <div>월</div>
+            <div>화</div>
+            <div>수</div>
+            <div>목</div>
+            <div>금</div>
+            <div>토</div>
+        </div>
+
+        <div class="grid dateBoard" id='day'></div>
+    </div>
+
+    <!-- Custom modal for editing plans -->
+    <div class="overlay" id="overlay"></div>
+    <div class="modal" id="modal">
+        <textarea id="modalTextarea" placeholder="계획을 작성하세요 (줄바꿈으로 여러 계획 입력 가능)"></textarea>
+        <button onclick="savePlan()">저장</button>
+        <button onclick="closeModal()">취소</button>
+    </div>
+
+    <script>
+        const calendarList = {};
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+let activeDate = '';
+
+Number.prototype.pad = function () {
+    return this < 10 ? '0' + this : this;
+};
+
+// LocalStorage에서 데이터 불러오기
+function loadCalendarData() {
+    const savedData = localStorage.getItem('calendarData');
+    if (savedData) {
+        Object.assign(calendarList, JSON.parse(savedData));
+    }
+}
+
+// LocalStorage에 데이터 저장
+function saveCalendarData() {
+    localStorage.setItem('calendarData', JSON.stringify(calendarList));
+}
+
+function renderCalendar() {
+    const dateBoard = document.getElementById('day');
+    dateBoard.innerHTML = '';
+
+    const dateTitle = document.querySelector('.dateTitle');
+    dateTitle.innerHTML = `${currentYear}년 ${(currentMonth + 1).pad()}월`;
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const currentDate = new Date();
+
+    for (let i = 0; i < firstDay; i++) {
+        dateBoard.innerHTML += `<div></div>`;
+    }
+
+    for (let day = 1; day <= lastDate; day++) {
+        const isToday =
+            currentYear === currentDate.getFullYear() &&
+            currentMonth === currentDate.getMonth() &&
+            day === currentDate.getDate();
+
+        const dayClass = isToday ? 'today' : '';
+        const formattedDate = `${currentYear}-${(currentMonth + 1).pad()}-${day.pad()}`;
+        const hasMemoClass = calendarList[formattedDate] && calendarList[formattedDate].length > 0 ? 'hasMemo' : '';
+
+        const plans = calendarList[formattedDate]
+            ? calendarList[formattedDate]
+                  .map(
+                      (plan, index) =>
+                          `<p 
+                              class="${plan.highlighted ? 'highlighted-plan' : ''} ${plan.done ? 'completed-plan' : ''}">
+                              <input type="checkbox" ${plan.done ? 'checked' : ''} 
+                                  onclick="toggleComplete('${formattedDate}', ${index}, event)">
+                              <span onclick="toggleHighlight('${formattedDate}', ${index}, event)">${plan.text}</span>
+                          </p>`
+                  )
+                  .join('')
+            : '';
+
+        dateBoard.innerHTML += `
+            <div class="${dayClass} ${hasMemoClass}" onclick="openModal('${formattedDate}', event)">
+                <strong>${day}</strong>
+                ${plans}
+            </div>`;
+    }
+}
+
+function toggleComplete(date, index, event) {
+    event.stopPropagation(); // Prevent propagation to parent click
+    calendarList[date][index].done = !calendarList[date][index].done;
+    saveCalendarData();
+    renderCalendar();
+}
+
+function toggleHighlight(date, index, event) {
+    event.stopPropagation(); // Prevent propagation to parent click
+    calendarList[date][index].highlighted = !calendarList[date][index].highlighted;
+    saveCalendarData();
+    renderCalendar();
+}
+
+function openModal(date, event) {
+    event.stopPropagation(); // Prevent propagation to parent click
+    activeDate = date;
+    const modalTextarea = document.getElementById('modalTextarea');
+    modalTextarea.value = calendarList[date]
+        ? calendarList[date].map(plan => plan.text).join('\n')
+        : '';
+    document.getElementById('modal').style.display = 'block';
+    document.getElementById('overlay').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+}
+
+function savePlan() {
+    const modalTextarea = document.getElementById('modalTextarea');
+    const plans = modalTextarea.value.split('\n').filter(plan => plan.trim() !== '');
+    calendarList[activeDate] = plans.map(plan => ({ text: plan, done: false, highlighted: false }));
+    saveCalendarData();
+    closeModal();
+    renderCalendar();
+}
+
+document.querySelector('.prevDay').addEventListener('click', () => {
+    currentMonth--;
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    }
+    renderCalendar();
+});
+
+document.querySelector('.nextDay').addEventListener('click', () => {
+    currentMonth++;
+    if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+    renderCalendar();
+});
+
+// 페이지 로드 시 데이터 불러오기
+window.onload = () => {
+    loadCalendarData();
+    renderCalendar();
+};
+
+    </script>
+</body>
+</html>
