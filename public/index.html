@@ -187,7 +187,7 @@
                 .then((response) => {
                     if (response.ok) {
                         // 성공 시 캘린더 페이지로 이동
-                        window.location.href = '/calendar.html';
+                        window.location.href = '/to-do calendar.html';
                     } else {
                         return response.text().then((message) => {
                             throw new Error(message);
