@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar UI</title>
+    <style>
+        .dateHead div {
+            background: rgb(0, 0, 0);
+            color: rgb(255, 255, 255);
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-gap: 5px;
+            background-color: rgb(255, 255, 255);
+        }
+
+        .grid div {
+            padding: .6rem;
+            font-size: .9rem;
+            cursor: pointer;
+        }
+
+        .dateBoard div {
+            color: #222;
+            font-weight: bold;
+            min-height: 6rem;
+            padding: .6rem .8rem;
+            border-radius: 5px;
+            border: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 2rem;
+        }
+
+        .btn {
+            display: block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #000;
+            border-width: 3px 3px 0 0;
+            cursor: pointer;
+        }
+
+        .prevDay {
+            transform: rotate(-135deg);
+        }
+
+        .nextDay {
+            transform: rotate(45deg);
+        }
+    </style>
+</head>
+<body>
+    <div class='rap'>
+        <div class="header">
+            <div class="btn prevDay" onclick="changeMonth(-1)"></div>
+            <h2 class='dateTitle' id="dateTitle"></h2>
+            <div class="btn nextDay" onclick="changeMonth(1)"></div>
+        </div>
+
+        <div class="grid dateHead">
+            <div>일</div>
+            <div>월</div>
+            <div>화</div>
+            <div>수</div>
+            <div>목</div>
+            <div>금</div>
+            <div>토</div>
+        </div>
+
+        <div class="grid dateBoard" id='day'></div>
+    </div>
+
+    <script>
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        function pad(num) {
+            return num < 10 ? '0' + num : num;
+        }
+
+        function renderCalendar() {
+            const dateBoard = document.getElementById('day');
+            dateBoard.innerHTML = '';
+
+            const dateTitle = document.getElementById('dateTitle');
+            dateTitle.innerHTML = `${currentYear}년 ${pad(currentMonth + 1)}월`;
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+                dateBoard.innerHTML += `<div></div>`;
+            }
+
+            for (let day = 1; day <= lastDate; day++) {
+                dateBoard.innerHTML += `<div>${day}</div>`;
+            }
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+
+        window.onload = renderCalendar;
+    </script>
+</body>
+</html>
