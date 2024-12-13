@@ -1,9 +1,10 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const db = require('./database'); // MySQL 연결 설정 가정
+const db = require('./database'); // MySQL 연결 설정 (database.js 또는 db.js 경로 확인)
 const path = require('path');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
+const { exec } = require('child_process'); // exec 함수 추가
 
 const app = express();
 const PORT = 3000;
@@ -90,7 +91,6 @@ app.get('/api/events', requireLogin, (req, res) => {
 
         const events = {};
         rows.forEach(row => {
-            // date 컬럼이 DATE 타입이라 가정 (YYYY-MM-DD 형태 필요)
             const dateStr = row.date.toISOString().split('T')[0];
             if (!events[dateStr]) {
                 events[dateStr] = [];
@@ -146,16 +146,9 @@ app.post('/api/events', requireLogin, (req, res) => {
     });
 });
 
-// 서버 실행
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
-
+// 백업 API
 app.get('/backup', (req, res) => {
-    // 백업 파일 경로: 날짜를 포함시켜 매일 다른 파일 생성 가능
     const backupFile = `/path/to/backup/backup_${new Date().toISOString().split('T')[0]}.sql`;
-
-    // mysqldump 명령 (실제 아이디/비번/DB 이름에 맞게 수정)
     const cmd = `mysqldump -u root -p123456 todo_app > ${backupFile}`;
 
     exec(cmd, (error, stdout, stderr) => {
@@ -165,4 +158,9 @@ app.get('/backup', (req, res) => {
         }
         res.send(`Backup completed successfully. File: ${backupFile}`);
     });
+});
+
+// 서버 실행
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
