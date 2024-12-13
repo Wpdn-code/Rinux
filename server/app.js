@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const db = require('./database'); // MySQL 연결 설정 (database.js 또는 db.js 경로 확인)
+const db = require('./database'); // MySQL 연결 설정 (database.js 또는 db.js 경로와 파일명 확인)
 const path = require('path');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
@@ -148,8 +148,9 @@ app.post('/api/events', requireLogin, (req, res) => {
 
 // 백업 API
 app.get('/backup', (req, res) => {
-    const backupFile = `/path/to/backup/backup_${new Date().toISOString().split('T')[0]}.sql`;
-    const cmd = `mysqldump -u root -p123456 todo_app > ${backupFile}`;
+    const backupDir = '/path/to/backup'; // 실제 존재하고 쓰기 권한 있는 디렉토리로 변경
+    const backupFile = `${backupDir}/backup_${new Date().toISOString().split('T')[0]}.sql`;
+    const cmd = `mysqldump -u root --password=123456 todo_app > ${backupFile}`;
 
     exec(cmd, (error, stdout, stderr) => {
         if (error) {
