@@ -123,25 +123,8 @@
     </style>
 </head>
 <body>
-    <!-- 회원가입 폼 -->
-    <div id="signupForm">
-        <h2>Sign Up</h2>
-        <input type="text" id="signupUsername" placeholder="Username"><br>
-        <input type="text" id="signupEmail" placeholder="Email"><br>
-        <input type="password" id="signupPassword" placeholder="Password"><br>
-        <button id="signupBtn">Sign Up</button>
-    </div>
-
-    <!-- 로그인 폼 -->
-    <div id="loginForm">
-        <h2>Login</h2>
-        <input type="text" id="loginUsername" placeholder="Username"><br>
-        <input type="password" id="loginPassword" placeholder="Password"><br>
-        <button id="loginBtn">Login</button>
-    </div>
-
-    <!-- 캘린더 영역 (초기에는 hidden) -->
-    <div id="calendarSection" class="hidden">
+    <!-- 캘린더 영역 -->
+    <div id="calendarSection">
         <div class='rap'>
             <div class="header">
                 <div class="btn prevDay"></div>
@@ -171,7 +154,6 @@
     </div>
 
     <script>
-        let loginStatus = false; // 로그인 상태 관리
         const calendarList = {};
         let currentYear = new Date().getFullYear();
         let currentMonth = new Date().getMonth();
@@ -181,52 +163,12 @@
             return this < 10 ? '0' + this : this;
         };
 
-        document.getElementById('signupBtn').addEventListener('click', async () => {
-            const username = document.getElementById('signupUsername').value;
-            const email = document.getElementById('signupEmail').value;
-            const password = document.getElementById('signupPassword').value;
-
-            const res = await fetch('/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password })
-            });
-
-            const text = await res.text();
-            alert(text);
-        });
-
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-
-            const res = await fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-
-            const text = await res.text();
-            alert(text);
-            if (res.status === 200) {
-                // 로그인 성공
-                loginStatus = true;
-                // UI 업데이트
-                document.getElementById('signupForm').classList.add('hidden');
-                document.getElementById('loginForm').classList.add('hidden');
-                document.getElementById('calendarSection').classList.remove('hidden');
-                await loadCalendarData();
-                renderCalendar();
-            }
-        });
-
-        // 서버에서 일정 데이터 불러오기
+        // 일정 데이터 불러오기
         async function loadCalendarData() {
-            if (!loginStatus) return;
             try {
                 const response = await fetch('/api/events');
                 if (!response.ok) {
-                    console.error('로그인하지 않음 또는 에러', await response.text());
+                    console.error('데이터 로딩 에러', await response.text());
                     return;
                 }
                 const data = await response.json();
@@ -242,9 +184,8 @@
             }
         }
 
-        // 서버에 일정 데이터 저장
+        // 일정 데이터 저장
         async function saveCalendarData() {
-            if (!loginStatus) return;
             const uploadData = {};
             for (const dateKey in calendarList) {
                 uploadData[dateKey] = calendarList[dateKey].map(plan => ({
@@ -366,6 +307,11 @@
                 currentMonth = 0;
                 currentYear++;
             }
+            renderCalendar();
+        });
+
+        // 초기 데이터 로드 후 달력 렌더링
+        loadCalendarData().then(() => {
             renderCalendar();
         });
     </script>
