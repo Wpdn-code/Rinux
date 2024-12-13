@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendar To-Do List</title>
     <style>
+        .hidden { display: none; }
+
+        /* 캘린더 스타일 */
         .dateHead div {
             background: rgb(0, 0, 0);
             color: rgb(255, 255, 255);
@@ -120,168 +123,251 @@
     </style>
 </head>
 <body>
-    <div class='rap'>
-        <div class="header">
-            <div class="btn prevDay"></div>
-            <h2 class='dateTitle'></h2>
-            <div class="btn nextDay"></div>
-        </div>
-
-        <div class="grid dateHead">
-            <div>일</div>
-            <div>월</div>
-            <div>화</div>
-            <div>수</div>
-            <div>목</div>
-            <div>금</div>
-            <div>토</div>
-        </div>
-
-        <div class="grid dateBoard" id='day'></div>
+    <!-- 회원가입 폼 -->
+    <div id="signupForm">
+        <h2>Sign Up</h2>
+        <input type="text" id="signupUsername" placeholder="Username"><br>
+        <input type="text" id="signupEmail" placeholder="Email"><br>
+        <input type="password" id="signupPassword" placeholder="Password"><br>
+        <button id="signupBtn">Sign Up</button>
     </div>
 
-    <!-- Custom modal for editing plans -->
-    <div class="overlay" id="overlay"></div>
-    <div class="modal" id="modal">
-        <textarea id="modalTextarea" placeholder="계획을 작성하세요 (줄바꿈으로 여러 계획 입력 가능)"></textarea>
-        <button onclick="savePlan()">저장</button>
-        <button onclick="closeModal()">취소</button>
+    <!-- 로그인 폼 -->
+    <div id="loginForm">
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username"><br>
+        <input type="password" id="loginPassword" placeholder="Password"><br>
+        <button id="loginBtn">Login</button>
+    </div>
+
+    <!-- 캘린더 영역 (초기에는 hidden) -->
+    <div id="calendarSection" class="hidden">
+        <div class='rap'>
+            <div class="header">
+                <div class="btn prevDay"></div>
+                <h2 class='dateTitle'></h2>
+                <div class="btn nextDay"></div>
+            </div>
+
+            <div class="grid dateHead">
+                <div>일</div>
+                <div>월</div>
+                <div>화</div>
+                <div>수</div>
+                <div>목</div>
+                <div>금</div>
+                <div>토</div>
+            </div>
+
+            <div class="grid dateBoard" id='day'></div>
+        </div>
+
+        <div class="overlay" id="overlay"></div>
+        <div class="modal" id="modal">
+            <textarea id="modalTextarea" placeholder="계획을 작성하세요 (줄바꿈으로 여러 계획 입력 가능)"></textarea>
+            <button onclick="savePlan()">저장</button>
+            <button onclick="closeModal()">취소</button>
+        </div>
     </div>
 
     <script>
+        let loginStatus = false; // 로그인 상태 관리
         const calendarList = {};
-let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth();
-let activeDate = '';
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+        let activeDate = '';
 
-Number.prototype.pad = function () {
-    return this < 10 ? '0' + this : this;
-};
+        Number.prototype.pad = function () {
+            return this < 10 ? '0' + this : this;
+        };
 
-// LocalStorage에서 데이터 불러오기
-function loadCalendarData() {
-    const savedData = localStorage.getItem('calendarData');
-    if (savedData) {
-        Object.assign(calendarList, JSON.parse(savedData));
-    }
-}
+        document.getElementById('signupBtn').addEventListener('click', async () => {
+            const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
 
-// LocalStorage에 데이터 저장
-function saveCalendarData() {
-    localStorage.setItem('calendarData', JSON.stringify(calendarList));
-}
+            const res = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password })
+            });
 
-function renderCalendar() {
-    const dateBoard = document.getElementById('day');
-    dateBoard.innerHTML = '';
+            const text = await res.text();
+            alert(text);
+        });
 
-    const dateTitle = document.querySelector('.dateTitle');
-    dateTitle.innerHTML = `${currentYear}년 ${(currentMonth + 1).pad()}월`;
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
 
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const currentDate = new Date();
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-    for (let i = 0; i < firstDay; i++) {
-        dateBoard.innerHTML += `<div></div>`;
-    }
+            const text = await res.text();
+            alert(text);
+            if (res.status === 200) {
+                // 로그인 성공
+                loginStatus = true;
+                // UI 업데이트
+                document.getElementById('signupForm').classList.add('hidden');
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('calendarSection').classList.remove('hidden');
+                await loadCalendarData();
+                renderCalendar();
+            }
+        });
 
-    for (let day = 1; day <= lastDate; day++) {
-        const isToday =
-            currentYear === currentDate.getFullYear() &&
-            currentMonth === currentDate.getMonth() &&
-            day === currentDate.getDate();
+        // 서버에서 일정 데이터 불러오기
+        async function loadCalendarData() {
+            if (!loginStatus) return;
+            try {
+                const response = await fetch('/api/events');
+                if (!response.ok) {
+                    console.error('로그인하지 않음 또는 에러', await response.text());
+                    return;
+                }
+                const data = await response.json();
+                for (const dateKey in data) {
+                    calendarList[dateKey] = data[dateKey].map(item => ({
+                        text: item.text,
+                        done: item.done == 1,
+                        highlighted: item.highlighted == 1
+                    }));
+                }
+            } catch (error) {
+                console.error('데이터 로딩 실패:', error);
+            }
+        }
 
-        const dayClass = isToday ? 'today' : '';
-        const formattedDate = `${currentYear}-${(currentMonth + 1).pad()}-${day.pad()}`;
-        const hasMemoClass = calendarList[formattedDate] && calendarList[formattedDate].length > 0 ? 'hasMemo' : '';
+        // 서버에 일정 데이터 저장
+        async function saveCalendarData() {
+            if (!loginStatus) return;
+            const uploadData = {};
+            for (const dateKey in calendarList) {
+                uploadData[dateKey] = calendarList[dateKey].map(plan => ({
+                    text: plan.text,
+                    done: plan.done ? 1 : 0,
+                    highlighted: plan.highlighted ? 1 : 0
+                }));
+            }
 
-        const plans = calendarList[formattedDate]
-            ? calendarList[formattedDate]
-                  .map(
-                      (plan, index) =>
-                          `<p 
-                              class="${plan.highlighted ? 'highlighted-plan' : ''} ${plan.done ? 'completed-plan' : ''}">
-                              <input type="checkbox" ${plan.done ? 'checked' : ''} 
-                                  onclick="toggleComplete('${formattedDate}', ${index}, event)">
-                              <span onclick="toggleHighlight('${formattedDate}', ${index}, event)">${plan.text}</span>
-                          </p>`
-                  )
-                  .join('')
-            : '';
+            try {
+                await fetch('/api/events', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(uploadData)
+                });
+            } catch (error) {
+                console.error('데이터 저장 실패:', error);
+            }
+        }
 
-        dateBoard.innerHTML += `
-            <div class="${dayClass} ${hasMemoClass}" onclick="openModal('${formattedDate}', event)">
-                <strong>${day}</strong>
-                ${plans}
-            </div>`;
-    }
-}
+        function renderCalendar() {
+            const dateBoard = document.getElementById('day');
+            dateBoard.innerHTML = '';
 
-function toggleComplete(date, index, event) {
-    event.stopPropagation(); // Prevent propagation to parent click
-    calendarList[date][index].done = !calendarList[date][index].done;
-    saveCalendarData();
-    renderCalendar();
-}
+            const dateTitle = document.querySelector('.dateTitle');
+            dateTitle.innerHTML = `${currentYear}년 ${(currentMonth + 1).pad()}월`;
 
-function toggleHighlight(date, index, event) {
-    event.stopPropagation(); // Prevent propagation to parent click
-    calendarList[date][index].highlighted = !calendarList[date][index].highlighted;
-    saveCalendarData();
-    renderCalendar();
-}
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const currentDate = new Date();
 
-function openModal(date, event) {
-    event.stopPropagation(); // Prevent propagation to parent click
-    activeDate = date;
-    const modalTextarea = document.getElementById('modalTextarea');
-    modalTextarea.value = calendarList[date]
-        ? calendarList[date].map(plan => plan.text).join('\n')
-        : '';
-    document.getElementById('modal').style.display = 'block';
-    document.getElementById('overlay').style.display = 'block';
-}
+            for (let i = 0; i < firstDay; i++) {
+                dateBoard.innerHTML += `<div></div>`;
+            }
 
-function closeModal() {
-    document.getElementById('modal').style.display = 'none';
-    document.getElementById('overlay').style.display = 'none';
-}
+            for (let day = 1; day <= lastDate; day++) {
+                const isToday =
+                    currentYear === currentDate.getFullYear() &&
+                    currentMonth === currentDate.getMonth() &&
+                    day === currentDate.getDate();
 
-function savePlan() {
-    const modalTextarea = document.getElementById('modalTextarea');
-    const plans = modalTextarea.value.split('\n').filter(plan => plan.trim() !== '');
-    calendarList[activeDate] = plans.map(plan => ({ text: plan, done: false, highlighted: false }));
-    saveCalendarData();
-    closeModal();
-    renderCalendar();
-}
+                const dayClass = isToday ? 'today' : '';
+                const formattedDate = `${currentYear}-${(currentMonth + 1).pad()}-${day.pad()}`;
+                const hasMemoClass = calendarList[formattedDate] && calendarList[formattedDate].length > 0 ? 'hasMemo' : '';
 
-document.querySelector('.prevDay').addEventListener('click', () => {
-    currentMonth--;
-    if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-    }
-    renderCalendar();
-});
+                const plans = calendarList[formattedDate]
+                    ? calendarList[formattedDate]
+                        .map(
+                            (plan, index) =>
+                                `<p 
+                                    class="${plan.highlighted ? 'highlighted-plan' : ''} ${plan.done ? 'completed-plan' : ''}">
+                                    <input type="checkbox" ${plan.done ? 'checked' : ''} 
+                                        onclick="toggleComplete('${formattedDate}', ${index}, event)">
+                                    <span onclick="toggleHighlight('${formattedDate}', ${index}, event)">${plan.text}</span>
+                                </p>`
+                        )
+                        .join('')
+                    : '';
 
-document.querySelector('.nextDay').addEventListener('click', () => {
-    currentMonth++;
-    if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-    }
-    renderCalendar();
-});
+                dateBoard.innerHTML += `
+                    <div class="${dayClass} ${hasMemoClass}" onclick="openModal('${formattedDate}', event)">
+                        <strong>${day}</strong>
+                        ${plans}
+                    </div>`;
+            }
+        }
 
-// 페이지 로드 시 데이터 불러오기
-window.onload = () => {
-    loadCalendarData();
-    renderCalendar();
-};
+        function toggleComplete(date, index, event) {
+            event.stopPropagation();
+            calendarList[date][index].done = !calendarList[date][index].done;
+            saveCalendarData();
+            renderCalendar();
+        }
 
+        function toggleHighlight(date, index, event) {
+            event.stopPropagation();
+            calendarList[date][index].highlighted = !calendarList[date][index].highlighted;
+            saveCalendarData();
+            renderCalendar();
+        }
+
+        function openModal(date, event) {
+            event.stopPropagation();
+            activeDate = date;
+            const modalTextarea = document.getElementById('modalTextarea');
+            modalTextarea.value = calendarList[date]
+                ? calendarList[date].map(plan => plan.text).join('\n')
+                : '';
+            document.getElementById('modal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        async function savePlan() {
+            const modalTextarea = document.getElementById('modalTextarea');
+            const plans = modalTextarea.value.split('\n').filter(plan => plan.trim() !== '');
+            calendarList[activeDate] = plans.map(plan => ({ text: plan, done: false, highlighted: false }));
+            await saveCalendarData();
+            closeModal();
+            renderCalendar();
+        }
+
+        document.querySelector('.prevDay').addEventListener('click', async () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        });
+
+        document.querySelector('.nextDay').addEventListener('click', async () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        });
     </script>
 </body>
 </html>
- 

@@ -1,0 +1,6 @@
+.highlighted-plan {
+    background-color: red; /* 강조된 계획의 배경 색상 */
+    color: white; /* 강조된 계획의 글자 색상 */
+    border-radius: 5px; /* 강조된 계획의 모서리 둥글게 */
+    padding: 0.2rem; /* 강조된 계획의 패딩 */
+}
